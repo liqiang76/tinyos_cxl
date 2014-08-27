@@ -1,0 +1,124 @@
+COMPONENT=BaseStationAppC
+
+BS_KEEP_ALIVE_TIMEOUT?=5120UL
+CFLAGS +=-DBS_KEEP_ALIVE_TIMEOUT=$(BS_KEEP_ALIVE_TIMEOUT)
+
+CFLAGS+=-DSERIAL_ADDRESS_FILTERING=1
+RAW_SERIAL_PRINTF=0
+CFLAGS += -DNEW_PRINTF_SEMANTICS
+
+CFLAGS += -I$(TOSDIR)/lib/cxl/serial
+CFLAGS += -I$(TOSDIR)/lib/printf
+CFLAGS += -I$(TOSDIR)/lib/serial
+
+ENABLE_PROBE_SCHEDULE_CONFIG?=1
+ENABLE_BACON_SAMPLER?=0
+ENABLE_TOAST_SAMPLER?=0
+ENABLE_PHOENIX?=0
+ENABLE_SETTINGS_LOGGING?=0
+ENABLE_SETTINGS_CONFIG?=1
+ENABLE_SETTINGS_CONFIG_FULL?=1
+ENABLE_AUTOPUSH?=0
+ENABLE_CONFIGURABLE_LOG_NOTIFY?=0
+ENABLE_PRECISION_TIMESTAMP?=0
+ENABLE_FORWARDER_SELECTION?=1
+
+BS_OUTGOING_POOL_SIZE?=2
+BS_QUEUE_SIZE?=$(BS_OUTGOING_POOL_SIZE)
+BS_CONTROL_POOL_SIZE?=2
+CFLAGS += -DBS_CONTROL_POOL_SIZE=$(BS_CONTROL_POOL_SIZE)
+CFLAGS += -DBS_OUTGOING_POOL_SIZE=$(BS_OUTGOING_POOL_SIZE)
+CFLAGS += -DBS_QUEUE_SIZE=$(BS_QUEUE_SIZE)
+
+AM_POOL_SIZE ?= 3
+CFLAGS += -DAM_POOL_SIZE=$(AM_POOL_SIZE)
+
+MAX_POWER?= 0xC3
+CFLAGS += -DMAX_POWER=$(MAX_POWER)
+CFLAGS +=-DPATABLE0_SETTINGS=$(MAX_POWER)
+
+MIN_POWER?= 0x03
+CFLAGS += -DMIN_POWER=$(MIN_POWER)
+
+CFLAGS += -DCX_BASESTATION=1
+
+ENABLE_FORWARDER_SELECTION ?= 1
+
+ENABLE_PRINTF ?= 0
+CFLAGS += -DDL_BASESTATION=DL_ERROR
+
+DL_GLOBAL?=DL_WARN
+DL_LPP?=DL_ERROR
+DL_LINK?=DL_ERROR
+DL_LINK_TIMING?=DL_ERROR
+DL_SCHED?=DL_ERROR
+DL_SCHED_RX?=DL_ERROR
+DL_ROUTER?=DL_ERROR
+DL_ROUTING?=DL_ERROR
+DL_AUTOPUSH?=DL_ERROR
+DL_STATS?=DL_ERROR
+
+CFLAGS +=-DCC430_PIN_DEBUG=1
+
+STORAGEDIR = $(TOSDIR)/platforms/bacon/chips/stm25p
+
+# SLOT_LIMIT ?= 255
+# CFLAGS += -DSLOT_LIMIT=$(SLOT_LIMIT)
+
+include $(TOSROOT)/apps/breakfast/bacon/cxCommon/Makefile
+
+#----- MIG targets
+
+#LPP control messages
+LPPMIGDIR = lpp
+MIGCLASSES = $(LPPMIGDIR)/CxLppCts.py $(LPPMIGDIR)/CxLppSleep.py $(LPPMIGDIR)/CxLppWakeup.py 
+
+CXMIGDIR = cx/messages
+MIGCLASSES += $(CXMIGDIR)/CxDownload.py $(CXMIGDIR)/CxDownloadFinished.py $(CXMIGDIR)/CxDownloadStarted.py
+MIGCLASSES += $(CXMIGDIR)/CxRecordRequestMsg.py $(CXMIGDIR)/LogRecordDataMsg.py
+MIGCLASSES += $(CXMIGDIR)/SetSettingsStorageMsg.py
+MIGCLASSES += $(CXMIGDIR)/PingMsg.py $(CXMIGDIR)/PongMsg.py 
+MIGCLASSES += $(CXMIGDIR)/PrintfMsg.py
+MIGCLASSES += $(CXMIGDIR)/IdentifyRequest.py $(CXMIGDIR)/IdentifyResponse.py
+MIGCLASSES += $(CXMIGDIR)/FwdStatus.py $(CXMIGDIR)/CxEosReport.py
+MIGCLASSES += $(CXMIGDIR)/CxStatus.py 
+
+$(LPPMIGDIR):
+	mkdir -p $(LPPMIGDIR)
+
+$(LPPMIGDIR)/%.py: $(LPPMIGDIR)
+	genMig.sh $(PLATFORM) $(TOSDIR)/lib/cxl/mac/CXMac.h $@ $(CFLAGS) 
+
+$(CXMIGDIR):
+	mkdir -p $(CXMIGDIR)
+
+$(CXMIGDIR)/CxDownload.py: $(CXMIGDIR)
+	genMig.sh $(PLATFORM) $(TOSDIR)/lib/cxl/scheduler/CXRouter.h $@ $(CFLAGS) 
+
+$(CXMIGDIR)/PingMsg.py: $(CXMIGDIR)
+	genMig.sh $(PLATFORM) $(TOSROOT)/apps/breakfast/bacon/Ping/ping.h $@ $(CFLAGS) 
+
+$(CXMIGDIR)/PongMsg.py: $(CXMIGDIR)
+	genMig.sh $(PLATFORM) $(TOSROOT)/apps/breakfast/bacon/Ping/ping.h $@ $(CFLAGS) 
+
+$(CXMIGDIR)/CxRecordRequestMsg.py: $(CXMIGDIR)
+	genMig.sh $(PLATFORM) $(TOSROOT)/apps/breakfast/bacon/autoPush/RecordRequest.h $@ $(CFLAGS)
+
+$(CXMIGDIR)/LogRecordDataMsg.py: $(CXMIGDIR) 
+	genMig.sh $(PLATFORM) $(STORAGEDIR)/RecordStorage.h $@ $(CFLAGS)
+
+$(CXMIGDIR)/PrintfMsg.py: 
+	mig python -target=$(PLATFORM) $(CFLAGS) -python-classname=PrintfMsg $(TOSDIR)/lib/printf/printf.h printf_msg -o $@
+
+$(CXMIGDIR)/SetSettingsStorageMsg.py:
+	genMig.sh $(PLATFORM) $(TOSROOT)/apps/breakfast/bacon/settingsStorage/SettingsStorage.h $@ $(CFLAGS)
+
+$(CXMIGDIR)/CxStatus.py:
+	genMig.sh $(PLATFORM) $(TOSDIR)/lib/cxl/mac/CXMac.h $@ $(CFLAGS)
+
+$(CXMIGDIR)/%.py: $(CXMIGDIR)
+	genMig.sh $(PLATFORM) basestation.h $@ $(CFLAGS) 
+
+migClasses: $(MIGCLASSES)
+
+include $(MAKERULES)

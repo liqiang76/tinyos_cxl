@@ -1,0 +1,65 @@
+COMPONENT=TestAppC
+CFLAGS+=-I$(TOSDIR)/lib/serialprintf
+
+CFLAGS+=-I$(TOSDIR)/chips/cc430
+
+#CFLAGS+=-Irf1a_override/
+#CFLAGS+=-Irf1a_override/am
+#CFLAGS+=-Irf1a_override/interfaces
+#CFLAGS+=-Irf1a_override/physical
+#CFLAGS+=-Irf1a_override/physical/configs
+#CFLAGS+=-Irf1a_override/fec
+#CFLAGS+=-I$(TOSDIR)/lib/rf1a-delayedSend
+
+#defaults
+IS_SENDER?=FALSE
+POWER_INDEX?=3
+HGM?=FALSE
+CHANNEL?=0
+USE_LONG_IPI?=FALSE
+PRR_BUF_LEN?=200
+REPORT?=TRUE
+HAS_FE?=FALSE
+TOSH_DATA_LENGTH?=64
+RF1A_FEC_ENABLED?=1
+RF1A_AUTOCAL?=1
+RF1A_DUMP_CONFIG?=0
+
+#NOTE: to specify from command line:
+# TEST_DESC=\\\"TEST_INFO\\\"
+TEST_DESC?=\"NO_INFO\"
+TEST_NUM?=0
+
+#expose to app
+CFLAGS+=-DIS_SENDER=$(IS_SENDER)
+CFLAGS+=-DPOWER_INDEX=$(POWER_INDEX)
+CFLAGS+=-DHGM=$(HGM)
+CFLAGS+=-DCHANNEL=$(CHANNEL)
+CFLAGS+=-DPRR_BUF_LEN=$(PRR_BUF_LEN)
+CFLAGS+=-DREPORT=$(REPORT)
+CFLAGS+=-DUSE_LONG_IPI=$(USE_LONG_IPI)
+CFLAGS+=-DHAS_FE=$(HAS_FE)
+CFLAGS+=-DTOSH_DATA_LENGTH=$(TOSH_DATA_LENGTH)
+CFLAGS+=-DRF1A_FEC_ENABLED=$(RF1A_FEC_ENABLED)
+CFLAGS+=-DRF1A_AUTOCAL=$(RF1A_AUTOCAL)
+CFLAGS+=-DRF1A_DUMP_CONFIG=$(RF1A_DUMP_CONFIG)
+
+CFLAGS+=-DTEST_DESC=$(TEST_DESC)
+CFLAGS+=-DTEST_NUM=$(TEST_NUM)
+
+#uncomment to receive packets with failed CRCs (or if rf1a config is
+# set up to filter on CRC
+CFLAGS+=-DRF1A_NO_CRC
+
+CFLAGS+=-DQUIET
+
+#TODO: set from command line. not a big deal, though, if non-amp mote
+# thinks it has one
+CFLAGS+=-DHAS_CC1190
+
+CFLAGS+=-DPATABLE0_SETTING=0x8D
+
+#16mhz mclk, 32 mhz dco
+PFLAGS+=-DMSP430XV2_DCO_CONFIG=MSP430XV2_DCO_32MHz_RSEL6
+
+include $(MAKERULES)

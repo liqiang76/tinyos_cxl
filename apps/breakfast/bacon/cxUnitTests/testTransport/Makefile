@@ -1,0 +1,82 @@
+COMPONENT=TestC
+
+CX_MASTER?=1
+CFLAGS += -DCX_MASTER=$(CX_MASTER)
+
+CFLAGS+=-I$(TOSDIR)/lib/serialprintf
+CFLAGS += -I$(TOSDIR)/lib/priorityQueue
+
+CFLAGS += -I$(TOSDIR)/lib/cx
+CFLAGS += -I$(TOSDIR)/lib/cx/scheduler
+CFLAGS += -I$(TOSDIR)/lib/cx/network
+CFLAGS += -I$(TOSDIR)/lib/cx/transport
+CFLAGS += -I$(TOSDIR)/lib/cx/link
+CFLAGS += -I$(TOSDIR)/lib/cx/packet
+CFLAGS += -I$(TOSDIR)/lib/cx/am
+CFLAGS += -I$(TOSDIR)/lib/cx/routing
+CFLAGS += -I$(TOSDIR)/lib/cx/debug
+CFLAGS += -I$(TOSDIR)/lib/rf1a-tdma/timer
+
+CFLAGS += -I$(TOSROOT)/apps/breakfast/util
+CFLAGS += -I$(TOSROOT)/apps/breakfast/util/stackGuard
+CFLAGS += -I$(TOSROOT)/apps/breakfast/util/globalID
+CFLAGS += -I$(TOSDIR)/chips/msp430/tlvStorage
+
+PFLAGS+=-DMSP430XV2_DCO_CONFIG=MSP430XV2_DCO_32MHz_RSEL6
+CFLAGS+=-DXT2_SMCLK
+
+CFLAGS += -DCX_SELF_RETX=1
+
+CFLAGS +=-DENABLE_TIMESTAMPING=1
+
+#160 frames = 5 seconds
+CFLAGS +=-DCX_DEFAULT_CYCLE_LENGTH=100
+CFLAGS +=-DCX_DEFAULT_SLOT_LENGTH=10
+CFLAGS +=-DCX_DEFAULT_MAX_DEPTH=2
+
+#NB: length field is 8 bits: so if we are using FEC, we need to make
+# sure that the total packet length is less than this.
+CFLAGS+= -DTOSH_DATA_LENGTH=109
+CFLAGS+= -DRF1A_FEC_ENABLED=1
+CFLAGS+= -DPATABLE0_SETTING=0x8D
+
+#Debug settings
+CFLAGS += -DDL_LINK=DL_INFO
+CFLAGS += -DDL_LINKQUEUE=DL_INFO
+CFLAGS += -DDL_NETWORK=DL_WARN
+CFLAGS += -DDL_SCHED=DL_DEBUG
+CFLAGS += -DDL_SKEW=DL_DEBUG
+CFLAGS += -DDL_TRANSPORT=DL_WARN
+CFLAGS += -DDL_AM=DL_WARN
+CFLAGS += -DDL_test=DL_INFO
+
+#toggle P1.1 at every used frame boundary
+CFLAGS += -DLINK_DEBUG_FRAME_BOUNDARIES=1
+#buggy: forces a MARK event at every frame
+CFLAGS += -DMARK_ALL_FRAMES=0
+#Set P1.1 at wakeup, clear at sleep
+CFLAGS += -DLINK_DEBUG_WAKEUP=1
+
+#P1.1: frame boundary
+#P1.2: rx/tx
+#P1.3: wakeup
+#P2.4: gdo
+
+#CFLAGS += -DFRAMELEN_32K=2048UL
+#CFLAGS += -DFRAMELEN_6_5M=406250UL
+CFLAGS += -DDUMMY_CRC=0
+CFLAGS += -DCX_ENABLE_SKEW_CORRECTION=1
+
+CFLAGS += -DCX_STATIC_SCHEDULE=1
+CFLAGS += -DCX_SCALE_TIME=1
+CFLAGS += -DMAX_VACANT=5
+CFLAGS += -DMAX_SLOTS=5
+CFLAGS += -DMAX_ASSIGNMENTS=5
+CFLAGS += -DTEST_RESELECT=0
+
+CFLAGS+= -DEVICTION_THRESHOLD=3
+CFLAGS+= -DFREE_TIMEOUT=2
+CFLAGS+= -DAM_ID_FROM_FLASH=1
+
+include $(MAKERULES)
+

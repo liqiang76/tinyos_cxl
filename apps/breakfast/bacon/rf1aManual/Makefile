@@ -1,0 +1,16 @@
+COMPONENT=TestAppC
+
+TEST_CHANNEL?=64
+CFLAGS+=-DTEST_CHANNEL=$(TEST_CHANNEL)
+
+PFLAGS += -I$(TOSDIR)/lib/serialprintf
+CFLAGS += -I../../util
+CFLAGS += -I$(TOSDIR)/lib/rf1a-tdma
+CFLAGS += -I$(TOSDIR)/lib/rf1a-tdma/physical
+
+#16mhz mclk, 32 mhz dco
+PFLAGS+=-DMSP430XV2_DCO_CONFIG=MSP430XV2_DCO_32MHz_RSEL6
+
+CFLAGS+=-DXT2_SMCLK
+
+include $(MAKERULES)
