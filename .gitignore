@@ -1,0 +1,4 @@
+*.swp
+*.prj
+tinyos.sh
+build/
