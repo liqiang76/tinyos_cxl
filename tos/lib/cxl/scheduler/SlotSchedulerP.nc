@@ -262,9 +262,9 @@ module SlotSchedulerP {
     return TRUE;
     #else
     am_addr_t self = call ActiveMessageAddress.amAddress();
-    uint8_t si = call RoutingTable.getDistance(src, self);
-    uint8_t id = call RoutingTable.getDistance(self, dest);
-    uint8_t sd = call RoutingTable.getDistance(src, dest);
+    uint8_t si = call RoutingTable.getDistance(src, self, FALSE);
+    uint8_t id = call RoutingTable.getDistance(self, dest, FALSE);
+    uint8_t sd = call RoutingTable.getDistance(src, dest, FALSE);
     
 //    //replace unknown distances with 0.
 //    si = (si == call RoutingTable.getDefault())? 0 : si;
@@ -479,7 +479,7 @@ module SlotSchedulerP {
       //observe.
       pl -> bw = call SlotController.bw[activeNS](activeNS);
       pl -> distance = call RoutingTable.getDistance(master, 
-        call ActiveMessageAddress.amAddress());
+        call ActiveMessageAddress.amAddress(), FALSE);
       pl -> wakeupRC = call RebootCounter.get();
       pl -> wakeupTS = wakeupStartMilli;
       //These fields are somewhat application specific. It would be
@@ -663,7 +663,7 @@ module SlotSchedulerP {
               pendingLen,
               call RoutingTable.getDistance(
                 call ActiveMessageAddress.amAddress(), 
-                call CXLinkPacket.destination(pendingMsg))
+                call CXLinkPacket.destination(pendingMsg), FALSE)
                 + call SlotController.bw[activeNS](activeNS),
               call FrameTimer.gett0() + TX_SLACK);
             #endif
@@ -696,7 +696,7 @@ module SlotSchedulerP {
     #else
     return call RoutingTable.getDistance(
       call CXLinkPacket.source(msg),
-      call CXLinkPacket.destination(msg)) 
+      call CXLinkPacket.destination(msg), FALSE) 
       + call SlotController.bw[activeNS](activeNS);
     #endif
   }
@@ -715,7 +715,7 @@ module SlotSchedulerP {
             call CXLinkPacket.destination(msg),
             call RoutingTable.getDistance( 
               call CXLinkPacket.source(msg),
-              call CXLinkPacket.destination(msg)),
+              call CXLinkPacket.destination(msg), FALSE),
             call SlotController.bw[activeNS](activeNS));
           //need to leave 1 frame for EOS message
           if (framesLeft <= clearTime(msg) + EOS_FRAMES){
