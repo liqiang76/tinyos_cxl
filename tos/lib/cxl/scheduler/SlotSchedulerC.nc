@@ -126,6 +126,10 @@ configuration SlotSchedulerC{
   SlotSchedulerP.StatsLog -> StatsLog;
   #endif
 
+
+  components RandomC;
+  SlotSchedulerP.Random -> RandomC;
+
   components SettingsStorageC;
   SlotSchedulerP.SettingsStorage -> SettingsStorageC;
 

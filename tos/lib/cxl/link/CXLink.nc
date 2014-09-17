@@ -84,6 +84,8 @@ interface CXLink {
 
   command cx_link_stats_t getStats();
 
+  command bool isForwarding();
+
 //Obsoleted: link layer uses shorter forward times for packets with 1
 //byte (e.g. MAC layer control packets). This lets us get most of the
 //benefit of wakeup tones with a lot more code reuse

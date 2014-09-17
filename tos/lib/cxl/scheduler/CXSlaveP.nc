@@ -77,6 +77,16 @@ module CXSlaveP {
     signal CTS.ctsReceived[ns]();
   }
 
+  command uint16_t SlotController.getLastSN()
+  {
+    return 0;
+  }
+
+  command error_t SlotController.setLastSN(uint16_t sn)
+  {
+    return SUCCESS;
+  }
+
   default event void CTS.ctsReceived[uint8_t ns](){
   }
 }

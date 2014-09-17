@@ -45,18 +45,16 @@ module CXRoutingTableLastP {
     uint8_t distance;
     uint8_t age;
 
-    //this is for LSO usage. remove1 indicates if we have 
-    //decided to remove this node from forwarding set 
-    //of session src->dest from packet_sn == rm1_sn.
-    // remove2 and rm2_sn for session dest->src. 
-    bool removed1;
-    bool removed2;
-    uint32_t rm1_sn;
-    uint32_t rm2_sn;
+    // Used to mark if we stop fwding packets
+    // from session(src->root) forever 
+    // by making dist(src->(dest/self))=0xFF
+    bool disabled;   //disabled already
+    uint16_t sn;     //the last packet fwded before leave fwd-set
+    bool optimized;  //leave/return already invoked
   } rt_entry_t;
   
   //3 entries is minimum: end-to-end plus segment lengths
-  #define RT_LEN 10
+  #define RT_LEN 9
   rt_entry_t rt[RT_LEN];
 
   event void Boot.booted(){
@@ -65,13 +63,13 @@ module CXRoutingTableLastP {
       rt[i].src = AM_BROADCAST_ADDR;
       rt[i].dest = AM_BROADCAST_ADDR;
       rt[i].age = 0xFF;
-      rt[i].removed1 = FALSE;
-      rt[i].rm1_sn = 0;
-      rt[i].removed2 = FALSE;
-      rt[i].rm2_sn = 0;
+
+      rt[i].disabled= FALSE;
+      rt[i].sn = 0;
+      rt[i].optimized = FALSE;
      }
   }
-  
+ 
   command uint8_t RoutingTable.getDistance(am_addr_t from, 
       am_addr_t to, bool use_optm)
   {
@@ -83,29 +81,13 @@ module CXRoutingTableLastP {
       uint8_t i;
       for (i = 0; i < RT_LEN; i++)
       {
-        if (!use_optm)
+        if ((from == rt[i].src && to == rt[i].dest) 
+            || (from == rt[i].dest && to == rt[i].src))
         {
-          if ((from == rt[i].src && to == rt[i].dest) 
-              || (from == rt[i].dest && to == rt[i].src)){
+          if((!use_optm) || (use_optm && !rt[i].disabled))
             return rt[i].distance;
-          }
-        } 
-        else
-        {
-          if (from == rt[i].src && to == rt[i].dest)
-          {
-            if (rt[i].removed1)
-              return 255;
-            else
-              return rt[i].distance;
-          }
-          else if (to == rt[i].src && from == rt[i].dest)
-          {
-            if (rt[i].removed2)
-              return 255;
-            else
-              return rt[i].distance;
-          }
+          else
+            return 255;
         }
       }
       cdbg(ROUTING, "DD %u %u\r\n", from, to);
@@ -114,9 +96,10 @@ module CXRoutingTableLastP {
   }
 
 
-  //After packet with sn is sent, we decide not to involve
-  // this session any longer
-  command error_t RoutingTable.leaveForwardSet(am_addr_t from, am_addr_t to, int32_t sn)
+  //After packet with sn is forwarded, we decide not to 
+  // involve this session any longer. And we should 
+  // mark this routing item as optimized.
+  command error_t RoutingTable.leaveForwardSet(am_addr_t from, am_addr_t to, int16_t sn)
   {
     uint8_t i;
 
@@ -125,16 +108,11 @@ module CXRoutingTableLastP {
 
     for (i=0; i<RT_LEN; i++)
     {
-      if((rt[i].src == from) && (rt[i].dest == to))
+      if ((from == rt[i].src && to == rt[i].dest) 
+          || (from == rt[i].dest && to == rt[i].src))
       {
-        rt[i].removed1 = TRUE;
-        rt[i].rm1_sn = sn;
-        return SUCCESS;
-      }
-      else if((rt[i].src == to) && (rt[i].dest == from))
-      {
-        rt[i].removed2 = TRUE;
-        rt[i].rm2_sn = sn;
+        rt[i].disabled= TRUE;
+        rt[i].sn = sn;
         return SUCCESS;
       }
     }
@@ -142,7 +120,8 @@ module CXRoutingTableLastP {
     return FAIL;
   }
 
-  command error_t RoutingTable.returnForwardSet(am_addr_t from, am_addr_t to, int32_t sn)
+  //Our leave leads to packet loss, so come back
+  command error_t RoutingTable.returnForwardSet(am_addr_t from, am_addr_t to, int16_t sn)
   {
     uint8_t i;
 
@@ -151,19 +130,39 @@ module CXRoutingTableLastP {
 
     for (i=0; i<RT_LEN; i++)
     {
-      if((rt[i].src == from) && (rt[i].dest == to))
+      if ((from == rt[i].src && to == rt[i].dest) 
+          || (from == rt[i].dest && to == rt[i].src))
       {
-        if(rt[i].rm1_sn >= sn)
+        if(rt[i].sn >= sn)
         {
-          rt[i].removed1 = FALSE;
-          rt[i].rm1_sn = 0;
-          return SUCCESS;
+          rt[i].disabled= FALSE;
+          //rt[i].sn = sn;
         }
-        break;
+        rt[i].optimized = TRUE;
+        return SUCCESS;
       }
     }
 
     return FAIL;
+  }
+
+  command bool RoutingTable.isOptimized(am_addr_t from, am_addr_t to)
+  {
+    uint8_t i;
+    if(from == to)
+      return TRUE;
+    else if(from == AM_BROADCAST_ADDR || to == AM_BROADCAST_ADDR)
+      return TRUE;
+
+    for(i=0; i<RT_LEN; i++)
+    {
+      if(((rt[i].src == from) && (rt[i].dest==to)) 
+              || ((rt[i].dest == from) && (rt[i].src==to)))
+      {
+        return rt[i].optimized;
+      }
+    }
+    return FALSE;
   }
 
   command error_t RoutingTable.addMeasurement(am_addr_t from, 
@@ -214,10 +213,9 @@ module CXRoutingTableLastP {
     rt[oldest].dest = to;
     rt[oldest].distance = distance;
     rt[oldest].age = 0;
-    rt[oldest].removed1 = FALSE;
-    rt[oldest].rm1_sn = 0;
-    rt[oldest].removed2 = FALSE;
-    rt[oldest].rm2_sn = 0;
+    rt[oldest].disabled = FALSE;
+    rt[oldest].sn = 0;
+    rt[oldest].optimized = FALSE;
 
     return SUCCESS;
   }

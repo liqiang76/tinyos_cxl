@@ -103,6 +103,16 @@ module CXLinkP {
   uint32_t lastChange;
 
 
+//CXLink will notify upper level after it receives a packet. There
+  // are 2 possibilities: 1. After receiving a packet which should not 
+  // be forwarded; 2. After forwarding a packet received. We need 
+  // to tell these 2 apart.
+  bool isForwarding;
+  command bool CXLink.isForwarding()
+  {
+    return isForwarding; 
+  }
+
   void radioStateChangeAtTime(uint8_t newState, uint32_t changeTime){
     atomic{
       uint32_t elapsed = changeTime - lastChange;
@@ -468,6 +478,7 @@ module CXLinkP {
       signal Send.sendDone(fwdMsg, SUCCESS);
     }else if (localState == S_FWD_END){
       atomic state = S_IDLE;
+      isForwarding = TRUE;
       rxMsg = signal Receive.receive(rxMsg, 
         call Packet.getPayload(rxMsg, call Packet.payloadLength(rxMsg)), 
         call Packet.payloadLength(rxMsg));
@@ -1018,6 +1029,7 @@ module CXLinkP {
               metadata(rxMsg)->timeFast - rxStart);
           }
           #endif
+          isForwarding = FALSE;
           rxMsg = signal Receive.receive(rxMsg, 
             call Packet.getPayload(rxMsg, call Packet.payloadLength(rxMsg)),
             call Packet.payloadLength(rxMsg));
@@ -1085,6 +1097,7 @@ module CXLinkP {
         cerror(LINK, "LNM\r\n");
         signal SplitControl.startDone(ENOMEM);
       }
+      isForwarding = FALSE;
     }else{
       signal SplitControl.startDone(error);
     }

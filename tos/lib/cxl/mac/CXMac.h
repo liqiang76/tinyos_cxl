@@ -119,6 +119,7 @@ typedef nx_struct cx_lpp_sleep {
 
 typedef nx_struct cx_lpp_cts {
   nx_int16_t slotNum;
+  nx_int16_t lastSN;
 } cx_lpp_cts_t;
 
 typedef nx_struct cx_status {
@@ -135,6 +136,8 @@ typedef nx_struct cx_status {
   nx_uint8_t role;
   nx_uint8_t barcode[GLOBAL_ID_LEN];
   nx_am_addr_t neighbors[CX_NEIGHBORHOOD_SIZE];
+
+  nx_uint16_t lastSN;
 } cx_status_t; 
 
 typedef nx_struct cx_eos {
