@@ -36,6 +36,7 @@ interface RoutingTable {
     uint8_t distance);
   command error_t setDefault(uint8_t distance);
   command uint8_t getDefault();
-  command error_t leaveForwardSet(am_addr_t from, am_addr_t to, int32_t sn);
-  command error_t returnForwardSet(am_addr_t from, am_addr_t to, int32_t sn);
+  command error_t leaveForwardSet(am_addr_t from, am_addr_t to, int16_t sn);
+  command error_t returnForwardSet(am_addr_t from, am_addr_t to, int16_t sn);
+  command bool isOptimized(am_addr_t from, am_addr_t to);
 }

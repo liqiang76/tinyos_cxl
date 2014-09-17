@@ -78,6 +78,9 @@ module SlotSchedulerP {
   uses interface Get<uint32_t> as WriteCookie;
   uses interface Get<uint32_t> as MissingLength;
   uses interface SettingsStorage;
+
+  uses interface Random;
+
 } implementation {
 
   enum {
@@ -148,7 +151,6 @@ module SlotSchedulerP {
   uint8_t slotRole;
 
   uint8_t state = S_UNSYNCHED;
-  
 
   message_t* pendingMsg;
   uint8_t pendingLen;
@@ -211,8 +213,30 @@ module SlotSchedulerP {
   uint32_t slowToFast(uint32_t slowTicks){
     return slowTicks * (FRAMELEN_FAST_NORMAL/FRAMELEN_SLOW);
   }
-  
-  
+
+  //Define in what possibility this mote will keep 
+  // in a forward set after forwarding one packet
+  #ifndef FORWARD_POSSIBILITY
+  #define FORWARD_POSSIBILITY 80
+  #endif
+  //Randomly choose to leave or not
+  uint32_t random_thresh = 42949672UL * FORWARD_POSSIBILITY;
+  bool randomLeaveFwdSet()
+  {
+    if(call Random.rand32() <= random_thresh)
+      return FALSE;
+    else
+      return TRUE;
+  }
+
+  //Last round src node address and last sn from that src we forwarded
+  // lastSN: last msg forwarded; lastSN_CTS: last SN got from CTS(master); 
+  // lastSN_status: last sn got from status msg;
+  am_addr_t lastSrc = AM_BROADCAST_ADDR;
+  uint16_t lastSN = 0;
+  uint16_t lastSN_CTS = 0;
+  uint16_t lastSN_status = 0;
+ 
   uint8_t activeNS;
   uint8_t wrxCount;
 
@@ -262,8 +286,13 @@ module SlotSchedulerP {
     return TRUE;
     #else
     am_addr_t self = call ActiveMessageAddress.amAddress();
-    uint8_t si = call RoutingTable.getDistance(src, self, FALSE);
-    uint8_t id = call RoutingTable.getDistance(self, dest, FALSE);
+
+    //Here in first 2 getDistance we set use_optm=TRUE, because
+    // we need to know if we have decided to leave this forward set;
+    // while in 3rd we set use_optm=FALSE, because we need to know
+    // the true distance between src and dest.
+    uint8_t si = call RoutingTable.getDistance(src, self, TRUE);
+    uint8_t id = call RoutingTable.getDistance(self, dest, TRUE);
     uint8_t sd = call RoutingTable.getDistance(src, dest, FALSE);
     
 //    //replace unknown distances with 0.
@@ -361,14 +390,28 @@ module SlotSchedulerP {
       call FrameTimer.startOneShotAt(timestamp(msg) - RX_SLACK,
         FRAME_LENGTH * framesElapsed);
 //      call FrameTimer.startPeriodicAt( timestamp(msg) - RX_SLACK, FRAME_LENGTH);
+
+      if(lastSrc == call CXLinkPacket.destination(msg))
+        lastSN_CTS = pl -> lastSN;
+      else
+      {
+        lastSN = 0;
+        lastSN_CTS = 0;
+        lastSN_status = 0;
+        lastSrc = call CXLinkPacket.destination(msg);
+      }
     }
   }
 
   event message_t* SubReceive.receive(message_t* msg, void* pl,
       uint8_t len){
+    am_addr_t self, msg_src, msg_dst;
+    self = call ActiveMessageAddress.amAddress();
+    msg_src = call CXLinkPacket.source(msg);
+    msg_dst = call CXLinkPacket.destination(msg);
+ 
     rxTime = timestamp(msg);
-    call RoutingTable.addMeasurement(call CXLinkPacket.source(msg), 
-      call ActiveMessageAddress.amAddress(), 
+    call RoutingTable.addMeasurement(msg_src, self,
       call CXLinkPacket.rxHopCount(msg));
     cdbg(SCHED_CHECKED, "sr.r %x\r\n", call CXMacPacket.getMacType(msg));
     switch (call CXMacPacket.getMacType(msg)){
@@ -405,11 +448,19 @@ module SlotSchedulerP {
             //missed the CTS), we kick it off now.
             call FrameTimer.startPeriodicAt(timestamp(msg), FRAME_LENGTH);
           }
-          call RoutingTable.addMeasurement(
-            call CXLinkPacket.destination(msg),
-            call CXLinkPacket.source(msg), 
-            status->distance);
-  
+          call RoutingTable.addMeasurement( msg_dst, msg_src, status->distance);
+ 
+          if(lastSN != 0)
+          {
+            //the same slot owner as in last timeslot
+            lastSN_status = status->lastSN;
+            if((lastSN_status > lastSN_CTS) && !call RoutingTable.isOptimized(self, msg_src))
+            {
+              //Packet loss happened in last timeslot
+              call RoutingTable.returnForwardSet( self, msg_src, lastSN);
+            }
+          }
+
           if (status->dataPending && shouldForward(call CXLinkPacket.source(msg), 
               call CXLinkPacket.destination(msg), status->bw)){
             slotRole = ROLE_FORWARDER;
@@ -455,6 +506,37 @@ module SlotSchedulerP {
           call Packet.payloadLength(msg),
           call CXLinkPacket.rxHopCount(msg));
         logReception(msg);
+
+        // Master should record the last packet it receives,
+        // while leafs last packet it forwarded.
+        lastSrc = call CXLinkPacket.source(msg);
+        lastSN = call CXLinkPacket.getSn(msg);
+        if (call SlotController.isMaster[activeNS]())
+        {
+          call SlotController.setLastSN[activeNS](lastSN);
+        }
+        else if(call CXLink.isForwarding())
+        {
+          // This node is acting as a forwarder. So, it will check if 
+          // the route has been optimized. If yes, do nothing; or it
+          // should randomly choose if it should leave. 
+          if(! call RoutingTable.isOptimized(lastSrc, self))
+          {
+            if(randomLeaveFwdSet())
+            //Leave forwarding set and sleep
+            {
+              error_t error = call CXLink.sleep();
+              call RoutingTable.leaveForwardSet(lastSrc, self, lastSN);
+              slotRole = ROLE_NONFORWARDER;
+              call FrameTimer.stop();
+              if (error != SUCCESS){
+                cerror(SCHED, "sleep0 %x\r\n", error);
+              }
+              state = S_UNUSED_SLOT;
+            }
+          }
+        }
+
         return signal Receive.receive(msg, 
           call Packet.getPayload(msg, call Packet.payloadLength(msg)), 
           call Packet.payloadLength(msg));
@@ -474,6 +556,8 @@ module SlotSchedulerP {
       call Packet.clear(statusMsg);
       call CXMacPacket.setMacType(statusMsg, CXM_STATUS);
       call CXLinkPacket.setDestination(statusMsg, master);
+
+      pl -> lastSN = lastSN;
 
       //future: adjust bw depending on how much uncertainty we
       //observe.
@@ -797,6 +881,10 @@ module SlotSchedulerP {
         state = S_IDLE;
       }
       explicitDataPending = (call CXLinkPacket.getLinkMetadata(pendingMsg))->dataPending;
+
+      // this is the sender in this slot, forwarder and master are in SubReceive.receive()
+      lastSN = call CXLinkPacket.getSn(msg);
+
       pendingMsg = NULL;
       signal Send.sendDone(msg, error);
     } else if (state == S_CTS_SENDING){
@@ -1036,6 +1124,14 @@ module SlotSchedulerP {
             call CXMacPacket.setMacType(ctsMsg, CXM_CTS);
             pl -> slotNum = slotNum;
             call CXLinkPacket.setDestination(ctsMsg, activeNode);
+
+            //This is to help forwarders to judge if we have 
+            // packet loss or not in last round
+            if (activeNode == lastSrc)
+              pl -> lastSN = lastSN;
+            else
+              pl -> lastSN = 0;
+
             //header only
             #if LOG_CTS_TIME == 1
             ctsStart = call FrameTimer.getNow();
@@ -1129,6 +1225,8 @@ module SlotSchedulerP {
   }
   default command void SlotController.receiveCTS[uint8_t ns](am_addr_t m, uint8_t ans){}
   default command void SlotController.endSlot[uint8_t ns](){}
+  default command uint16_t SlotController.getLastSN[uint8_t ns](){return 0;}
+  default command error_t SlotController.setLastSN[uint8_t ns](uint16_t sn){return SUCCESS;}
 
   event void StateDump.dumpRequested(){}
 

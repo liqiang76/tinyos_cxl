@@ -49,6 +49,7 @@ typedef struct contact_entry{
   uint8_t failedAttempts;
   bool dataPending;
   bool contactFlag;
+  uint16_t lastSN;
 } contact_entry_t;
 
 #ifndef CX_MAX_SUBNETWORK_SIZE

@@ -604,6 +604,10 @@ module CXWakeupP {
     return call SubCXLink.sleep();
   }
 
+  command bool CXLink.isForwarding(){
+    return call SubCXLink.isForwarding();
+  }
+
   default event void LppControl.wokenUp(uint8_t ns){
   }
   default event void LppControl.fellAsleep(){

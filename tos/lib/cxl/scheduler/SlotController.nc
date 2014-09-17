@@ -42,4 +42,9 @@ interface SlotController {
   command message_t* receiveStatus(message_t* msg, cx_status_t* pl);
   command void receiveCTS(am_addr_t master, uint8_t activeNS);
   command void endSlot();
+
+  //return the SN of last CXM_DATA packet 
+  // received from current node(activeNode)
+  command uint16_t getLastSN();
+  command error_t setLastSN(uint16_t sn);
 }

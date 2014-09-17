@@ -108,6 +108,7 @@ module CXMasterP {
         contactList[0].nodeId = call ActiveMessageAddress.amAddress();
         contactList[0].dataPending = TRUE;
         contactList[0].failedAttempts = 0;
+        contactList[0].lastSN = 0;
         contactIndex = 0;
         totalNodes = 1;
         numRounds = 0;
@@ -253,6 +254,7 @@ module CXMasterP {
             contactList[totalNodes].nodeId = pl->neighbors[i];
             contactList[totalNodes].dataPending = TRUE;
             contactList[totalNodes].failedAttempts = 0;
+            contactList[totalNodes].lastSN = 0;
 //            printf( "A %x %u->%u\r\n",
 //              pl->neighbors[i], 
 //              i,
@@ -303,14 +305,28 @@ module CXMasterP {
     post signalEOS();
 
 //    printf("es %u/%u ->", contactIndex, totalNodes);
-    contactIndex++;
-    if (contactIndex >= totalNodes){
-      contactIndex = contactIndex % totalNodes;
-      numRounds++;
-    }
+
+    //these 4 lines are commented out so that next round we will 
+    // still communicate with the same node if it has data pending
+////    contactIndex++;
+////    if (contactIndex >= totalNodes){
+////      contactIndex = contactIndex % totalNodes;
+////      numRounds++;
+////    }
+
 //    printf("%u\r\n", contactIndex);
   }
 
+  command uint16_t SlotController.getLastSN()
+  {
+    return contactList[contactIndex].lastSN;
+  }
+
+  command error_t SlotController.setLastSN(uint16_t sn)
+  {
+    contactList[contactIndex].lastSN = sn;
+    return SUCCESS;
+  }
 
   command error_t CXDownload.markPending[uint8_t ns](am_addr_t addr){
     uint8_t i;
