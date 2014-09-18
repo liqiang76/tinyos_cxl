@@ -97,8 +97,9 @@ module CXRoutingTableLastP {
 
 
   //After packet with sn is forwarded, we decide not to 
-  // involve this session any longer. And we should 
-  // mark this routing item as optimized.
+  // involve this session any longer. 
+  // Note: we should not change optimize status of this item.
+  // sn: the last packet we forwarded.
   command error_t RoutingTable.leaveForwardSet(am_addr_t from, am_addr_t to, int16_t sn)
   {
     uint8_t i;
@@ -121,6 +122,7 @@ module CXRoutingTableLastP {
   }
 
   //Our leave leads to packet loss, so come back
+  // sn: the last packet master received last slot
   command error_t RoutingTable.returnForwardSet(am_addr_t from, am_addr_t to, int16_t sn)
   {
     uint8_t i;

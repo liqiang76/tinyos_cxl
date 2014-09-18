@@ -229,9 +229,13 @@ module SlotSchedulerP {
       return TRUE;
   }
 
-  //Last round src node address and last sn from that src we forwarded
-  // lastSN: last msg forwarded; lastSN_CTS: last SN got from CTS(master); 
-  // lastSN_status: last sn got from status msg;
+  // for forwarder/slot owner/master: 
+  //     lastSrc: slot owner of last slot;
+  //     lastSN: last msg forwarded/sent/received;
+  // lastSN_CTS: last SN got from CTS(master), 
+  //             meaningful only to forwarder;
+  // lastSN_status: last SN got from status msg,
+  //                meaningful only to forwarder;
   am_addr_t lastSrc = AM_BROADCAST_ADDR;
   uint16_t lastSN = 0;
   uint16_t lastSN_CTS = 0;
@@ -339,6 +343,22 @@ module SlotSchedulerP {
       cwarn(SCHED, "BBCTS\r\n");
       baseCTS = timestamp(msg);
     }
+
+    //all motes should execute this
+    if(lastSrc == call CXLinkPacket.destination(msg))
+      // the owner does not change, so we can try optimize 
+      // if not optimized yet
+      lastSN_CTS = pl -> lastSN;
+    else
+    {
+      // owner changed, so no possibility to optimize. Reset 
+      // these variables
+      lastSN = 0;
+      lastSN_CTS = 0;
+      lastSN_status = 0;
+      lastSrc = call CXLinkPacket.destination(msg);
+    }
+
     #if LOG_CTS_TIME == 1
     cdbg(SCHED, "C %lu %lu\r\n", ctsStart-baseCTS, timestamp(msg)-baseCTS);
     if (ctsStart > timestamp(msg)){
@@ -390,16 +410,6 @@ module SlotSchedulerP {
       call FrameTimer.startOneShotAt(timestamp(msg) - RX_SLACK,
         FRAME_LENGTH * framesElapsed);
 //      call FrameTimer.startPeriodicAt( timestamp(msg) - RX_SLACK, FRAME_LENGTH);
-
-      if(lastSrc == call CXLinkPacket.destination(msg))
-        lastSN_CTS = pl -> lastSN;
-      else
-      {
-        lastSN = 0;
-        lastSN_CTS = 0;
-        lastSN_status = 0;
-        lastSrc = call CXLinkPacket.destination(msg);
-      }
     }
   }
 
@@ -457,7 +467,7 @@ module SlotSchedulerP {
             if((lastSN_status > lastSN_CTS) && !call RoutingTable.isOptimized(self, msg_src))
             {
               //Packet loss happened in last timeslot
-              call RoutingTable.returnForwardSet( self, msg_src, lastSN);
+              call RoutingTable.returnForwardSet( self, msg_src, lastSN_CTS);
             }
           }
 
@@ -557,6 +567,7 @@ module SlotSchedulerP {
       call CXMacPacket.setMacType(statusMsg, CXM_STATUS);
       call CXLinkPacket.setDestination(statusMsg, master);
 
+      //lastSN=0 if owner changed. And it is OK here.
       pl -> lastSN = lastSN;
 
       //future: adjust bw depending on how much uncertainty we
@@ -1125,8 +1136,8 @@ module SlotSchedulerP {
             pl -> slotNum = slotNum;
             call CXLinkPacket.setDestination(ctsMsg, activeNode);
 
-            //This is to help forwarders to judge if we have 
-            // packet loss or not in last round
+            //If session continues, we should help forwarders
+            // to make clear if packet loss happened last slot
             if (activeNode == lastSrc)
               pl -> lastSN = lastSN;
             else
