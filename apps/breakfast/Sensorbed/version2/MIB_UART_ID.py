@@ -133,7 +133,7 @@ class ServerToMoteHandler(asyncore.dispatcher):
         self.addr = addr
         self.mac = None
         self.id = 0
-        self._hdlc= tos_MIBUART.HDLC()
+        self._hdlc= tos_MIBUART.HDLC(conn)
         self.start = 0
         self.incoming = ''
         self.inprocessing = ''

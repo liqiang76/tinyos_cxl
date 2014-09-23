@@ -31,7 +31,7 @@
 */
 
 
- #include "TestbedDebug.h"
+ //#include "TestbedDebug.h"
  #include "testbed.h"
 module TestbedRootP {
   uses interface CXDownload[uint8_t ns];

@@ -1,4 +1,5 @@
 *.swp
 *.prj
+*.pyc
 tinyos.sh
 build/
