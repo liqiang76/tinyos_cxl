@@ -15,7 +15,7 @@ ui = None
 status = {}
 mac2id = {}
 
-f = file('map')
+f = file(os.environ['TOSROOT']+'/map')
 for line in f.readlines():
     (mac, node) = line.split()
     mac2id[mac] = node 
