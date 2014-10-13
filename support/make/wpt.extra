@@ -4,7 +4,7 @@ PROGRAM = wpt
 
 program: $(BSL_TARGETS) $(TELOS_PROGRAM_DEPS) FORCE
 	@echo "    installing $(PLATFORM) binary using $(PROGRAM)"
-	( cat $(INSTALL_IHEX) ; echo reprogram-quick $(wordlist 2, 2, $(subst -, ,$(INSTALL_IHEX))) ) | nc 129.7.242.34 16462
+	( cat $(INSTALL_IHEX) ; echo reprogram-quick $(wordlist 2, 2, $(subst -, ,$(INSTALL_IHEX))) ) | nc 129.7.242.72 16462
 
 program_input: ihex
 	@:

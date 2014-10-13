@@ -183,11 +183,11 @@ do
     then
       continue
     fi
-    testDesc=\\\"${testDescShort}_snc_${snc}\\\"
-    ./burnRole.sh $subnetMap Router\
-      MAX_POWER=$rp\
-      TEST_DESC=$testDesc\
-      $commonOptions || exit 1
+#    testDesc=\\\"${testDescShort}_snc_${snc}\\\"
+#    ./burnRole.sh $subnetMap Router\
+#      MAX_POWER=$rp\
+#      TEST_DESC=$testDesc\
+#      $commonOptions || exit 1
 
     testDesc=\\\"${testDescShort}_snc_${snc}\\\"
     ./burnRole.sh $subnetMap Leaf -f Makefile.testbed \

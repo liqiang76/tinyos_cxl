@@ -217,13 +217,16 @@ module SlotSchedulerP {
   //Define in what possibility this mote will keep 
   // in a forward set after forwarding one packet
   #ifndef FORWARD_POSSIBILITY
-  #define FORWARD_POSSIBILITY 80
+  #define FORWARD_POSSIBILITY 70
   #endif
   //Randomly choose to leave or not
   uint32_t random_thresh = 42949672UL * FORWARD_POSSIBILITY;
   bool randomLeaveFwdSet()
   {
-    if(call Random.rand32() <= random_thresh)
+    uint32_t possibility = call Random.rand32() % 100;
+    cinfo(SCHED, "RAND %u\r\n", possibility);
+
+    if(possibility <= FORWARD_POSSIBILITY)
       return FALSE;
     else
       return TRUE;
@@ -468,6 +471,7 @@ module SlotSchedulerP {
             {
               //Packet loss happened in last timeslot
               call RoutingTable.returnForwardSet( self, msg_src, lastSN_CTS);
+              cinfo(SCHED, "RETURN %u %u\r\n", wakeupNum, slotNum);
             }
           }
 
@@ -530,18 +534,32 @@ module SlotSchedulerP {
           // This node is acting as a forwarder. So, it will check if 
           // the route has been optimized. If yes, do nothing; or it
           // should randomly choose if it should leave. 
-          if(! call RoutingTable.isOptimized(lastSrc, self))
+          if(!call RoutingTable.isDisabled(lastSrc, self))
           {
+            cinfo(SCHED, "FORWARDING %u %u\r\n", wakeupNum, slotNum);
+          }
+          else
+          {
+            cinfo(SCHED, "LEFT %u %u\r\n", wakeupNum, slotNum);
+          }
+
+          //if(! call RoutingTable.isOptimized(lastSrc, self))
+          if(! call RoutingTable.isDisabled(lastSrc, self) && 
+             ! call RoutingTable.isOptimized(lastSrc, self))
+          {
+            cinfo(SCHED, "SELECTING %u %u\r\n", wakeupNum, slotNum);
             if(randomLeaveFwdSet())
             //Leave forwarding set and sleep
             {
               error_t error = call CXLink.sleep();
+              cinfo(SCHED, "QUIT %u %u\r\n", wakeupNum, slotNum);
               call RoutingTable.leaveForwardSet(lastSrc, self, lastSN);
               slotRole = ROLE_NONFORWARDER;
               call FrameTimer.stop();
               if (error != SUCCESS){
                 cerror(SCHED, "sleep0 %x\r\n", error);
               }
+
               state = S_UNUSED_SLOT;
             }
           }

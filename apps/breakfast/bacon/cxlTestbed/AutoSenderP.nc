@@ -31,7 +31,7 @@
 */
 
 
- #include "TestbedDebug.h"
+// #include "TestbedDebug.h"
 module AutoSenderP{
   uses interface Boot;
   uses interface AMSend;

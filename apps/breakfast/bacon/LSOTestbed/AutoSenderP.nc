@@ -31,7 +31,7 @@
 */
 
 
- #include "TestbedDebug.h"
+// #include "TestbedDebug.h"
 module AutoSenderP{
   uses interface Boot;
   uses interface AMSend;
@@ -40,7 +40,8 @@ module AutoSenderP{
   uses interface Timer<TMilli>;
 } implementation {
   message_t* testMsg;
-  uint16_t packetsQueued = 0;
+//  uint16_t packetsQueued = 0;
+  uint16_t packetsQueued = 100;
   bool sending;
 
   event void Boot.booted(){
@@ -73,7 +74,7 @@ module AutoSenderP{
   }
 
   event void Timer.fired(){
-    packetsQueued ++;
+//    packetsQueued ++;
     post sendAgain();
   }
 

@@ -15,7 +15,8 @@ ui = None
 status = {}
 mac2id = {}
 
-f = file(os.environ['TOSROOT']+'/map')
+#f = file(os.environ['TOSROOT']+'/map')
+f = file('map')
 for line in f.readlines():
     (mac, node) = line.split()
     mac2id[mac] = node 
@@ -308,6 +309,7 @@ class ReprogramHandler(asynchat.async_chat):
             c = params[0]
             print 'params', params
             if c not in nslus:
+                #f = file(os.environ['TOSROOT']+'/map')
                 f = file('map')
                 for line in f.readlines():
                     (mac, node) = line.split()

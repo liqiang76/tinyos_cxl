@@ -50,11 +50,11 @@ module CXRoutingTableLastP {
     // by making dist(src->(dest/self))=0xFF
     bool disabled;   //disabled already
     uint16_t sn;     //the last packet fwded before leave fwd-set
-    bool optimized;  //leave/return already invoked
+    bool optimized;  //Return already invoked
   } rt_entry_t;
   
   //3 entries is minimum: end-to-end plus segment lengths
-  #define RT_LEN 9
+  #define RT_LEN 3
   rt_entry_t rt[RT_LEN];
 
   event void Boot.booted(){
@@ -114,6 +114,7 @@ module CXRoutingTableLastP {
       {
         rt[i].disabled= TRUE;
         rt[i].sn = sn;
+        rt[i].optimized = FALSE;
         return SUCCESS;
       }
     }
@@ -162,6 +163,25 @@ module CXRoutingTableLastP {
               || ((rt[i].dest == from) && (rt[i].src==to)))
       {
         return rt[i].optimized;
+      }
+    }
+    return FALSE;
+  }
+
+  command bool RoutingTable.isDisabled(am_addr_t from, am_addr_t to)
+  {
+    uint8_t i;
+    if(from == to)
+      return FALSE;
+    else if(from == AM_BROADCAST_ADDR || to == AM_BROADCAST_ADDR)
+      return FALSE;
+
+    for(i=0; i<RT_LEN; i++)
+    {
+      if(((rt[i].src == from) && (rt[i].dest==to)) 
+              || ((rt[i].dest == from) && (rt[i].src==to)))
+      {
+        return rt[i].disabled;
       }
     }
     return FALSE;

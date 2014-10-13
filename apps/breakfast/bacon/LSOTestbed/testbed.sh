@@ -51,7 +51,8 @@ td=0xFFFF
 dls=DL_INFO
 dlsr=DL_INFO
 dlsched=DL_INFO
-map=map.flat
+#map=map.flat
+map=map.qiang
 #test segment: default= subnetwork(flat)
 ts=1
 #packets per download
@@ -70,7 +71,7 @@ settingVars=( "rp" "lp" "rxSlack" "txSlack" "gitRev"
 "mct" "ssfds" "pa" "md" "ecl" "hpt" "tpl" "map" "ppd" "tdel" "ts"
 "sdel" "dlsched" "mts" "mtl" "xt2dc" "enablePrintf")
 
-dryRun=1
+dryRun=0
 set +x 
 while [ $# -gt 1 ]
 do
@@ -183,11 +184,11 @@ do
     then
       continue
     fi
-    testDesc=\\\"${testDescShort}_snc_${snc}\\\"
-    ./burnRole.sh $subnetMap Router\
-      MAX_POWER=$rp\
-      TEST_DESC=$testDesc\
-      $commonOptions || exit 1
+#    testDesc=\\\"${testDescShort}_snc_${snc}\\\"
+#    ./burnRole.sh $subnetMap Router\
+#      MAX_POWER=$rp\
+#      TEST_DESC=$testDesc\
+#      $commonOptions || exit 1
 
     testDesc=\\\"${testDescShort}_snc_${snc}\\\"
     ./burnRole.sh $subnetMap Leaf -f Makefile.testbed \
@@ -196,7 +197,8 @@ do
       $commonOptions || exit 1
 
     testDesc=\\\"${testDescShort}_snc_${snc}\\\"
-    ./burnRole.sh $subnetMap cxlTestbed\
+#    ./burnRole.sh $subnetMap cxlTestbed\
+    ./burnRole.sh $subnetMap LSOTestbed\
       MAX_POWER=$rp\
       TEST_DESC=$testDesc\
       $commonOptions || exit 1

@@ -39,4 +39,5 @@ interface RoutingTable {
   command error_t leaveForwardSet(am_addr_t from, am_addr_t to, int16_t sn);
   command error_t returnForwardSet(am_addr_t from, am_addr_t to, int16_t sn);
   command bool isOptimized(am_addr_t from, am_addr_t to);
+  command bool isDisabled(am_addr_t from, am_addr_t to);
 }
