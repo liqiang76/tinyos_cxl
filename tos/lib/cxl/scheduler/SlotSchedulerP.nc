@@ -243,6 +243,7 @@ module SlotSchedulerP {
   uint16_t lastSN = 0;
   uint16_t lastSN_CTS = 0;
   uint16_t lastSN_status = 0;
+  bool ownerChanged = FALSE;
  
   uint8_t activeNS;
   uint8_t wrxCount;
@@ -311,9 +312,10 @@ module SlotSchedulerP {
     //there is no bidirectional routing info. At any rate, it's
     //probably likely that the router will send messages to a variety
     //of nodes. 
-    if (src == master){
-      return TRUE;
-    }
+//    if (src == master){
+//      return TRUE;
+//    }
+
     cinfo(ROUTING, "SF %u %u %u %u %u %u %x\r\n",
       src, dest,
       si, id, sd, bw, (si + id <= sd + bw));
@@ -348,10 +350,14 @@ module SlotSchedulerP {
     }
 
     //all motes should execute this
+    cinfo(SCHED, "Last Src: %d, New Src: %d\r\n", lastSrc, call CXLinkPacket.destination(msg));
     if(lastSrc == call CXLinkPacket.destination(msg))
+    {
       // the owner does not change, so we can try optimize 
       // if not optimized yet
       lastSN_CTS = pl -> lastSN;
+      ownerChanged = FALSE;
+    }
     else
     {
       // owner changed, so no possibility to optimize. Reset 
@@ -360,6 +366,7 @@ module SlotSchedulerP {
       lastSN_CTS = 0;
       lastSN_status = 0;
       lastSrc = call CXLinkPacket.destination(msg);
+      ownerChanged = TRUE;
     }
 
     #if LOG_CTS_TIME == 1
@@ -375,7 +382,8 @@ module SlotSchedulerP {
       //TODO: this should either be computed based on times (which is
       //a little fuzzy) or it should be determined based on the
       //required propagation time of a short-packet flood.
-      uint8_t framesElapsed = 5;
+//      uint8_t framesElapsed = 5;
+      uint8_t framesElapsed = 8;
       slotRole = ROLE_OWNER;
       //Cts, Own
       cdbg(SCHED, "C O %u %u %lu %u\r\n", 
@@ -396,7 +404,8 @@ module SlotSchedulerP {
       post sendStatus();
     }else{
       //TODO: see above
-      uint8_t framesElapsed = 5;
+//      uint8_t framesElapsed = 5;
+      uint8_t framesElapsed = 8;
       //Cts, Else
       cdbg(SCHED, "C E %u %u %lu %u\r\n", 
         slotNum, 
@@ -463,8 +472,10 @@ module SlotSchedulerP {
           }
           call RoutingTable.addMeasurement( msg_dst, msg_src, status->distance);
  
-          if(lastSN != 0)
+          //if(lastSN != 0)
+          if(!ownerChanged)
           {
+            cinfo(SCHED, "Slot owner does not change. %u\r\n",lastSN);
             //the same slot owner as in last timeslot
             lastSN_status = status->lastSN;
             if((lastSN_status > lastSN_CTS) && !call RoutingTable.isOptimized(self, msg_src))
@@ -474,9 +485,25 @@ module SlotSchedulerP {
               cinfo(SCHED, "RETURN %u %u\r\n", wakeupNum, slotNum);
             }
           }
+          else
+          {
+             cinfo(SCHED,"Slot owner changed. %d\r\n", call CXLinkPacket.source(msg));
+          }
 
-          if (status->dataPending && shouldForward(call CXLinkPacket.source(msg), 
-              call CXLinkPacket.destination(msg), status->bw)){
+          cinfo(SCHED, "Routing Table: %u %u %u %u %u %u \r\n",
+                msg_src, msg_dst,
+                call RoutingTable.getDistance(msg_src, self, TRUE),
+                call RoutingTable.getDistance(self, msg_dst, TRUE),
+                call RoutingTable.getDistance(msg_src, msg_dst, FALSE),
+                status->bw);
+
+          if(shouldForward(call CXLinkPacket.source(msg), call CXLinkPacket.destination(msg), status->bw))
+          {
+             cinfo(SCHED, "CTS info: Should forward, %d,%d,%d\r\n", call CXLinkPacket.source(msg), call CXLinkPacket.destination(msg), status->bw);
+          }
+
+          if (status->dataPending && shouldForward(msg_src, msg_dst, status->bw) 
+              && msg_src != msg_dst){
             slotRole = ROLE_FORWARDER;
             cdbg(SCHED, "S F %u %u %u %u\r\n", 
               slotNum, 
@@ -819,6 +846,8 @@ module SlotSchedulerP {
       return EBUSY;
     } else {
       if (state == S_STATUS_PREP || state == S_IDLE){ 
+//        cinfo(SCHED, "PUSH a packet! %d, %d, %d\r\n", call CXMacPacket.getMacType(msg), call CXLinkPacket.source(msg),
+            call CXLinkPacket.destination(msg));
         pendingMsg = msg;
         pendingLen = len;
         if (state == S_IDLE){
@@ -1165,6 +1194,7 @@ module SlotSchedulerP {
             #if LOG_CTS_TIME == 1
             ctsStart = call FrameTimer.getNow();
             #endif
+            cinfo(SCHED, "TTL of CTS:%d\r\n", call SlotController.maxDepth[activeNS](activeNS));
             error = send(ctsMsg, 0,
               call SlotController.maxDepth[activeNS](activeNS),
               call SlotTimer.gett0() + TX_SLACK);

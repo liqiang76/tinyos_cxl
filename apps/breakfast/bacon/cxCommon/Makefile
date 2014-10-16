@@ -64,7 +64,8 @@ CFLAGS += -I$(TOSROOT)/apps/breakfast/bacon/rebooter
 CFLAGS += -I$(TOSROOT)/apps/breakfast/bacon/RebootCounter
 CFLAGS += -I$(TOSROOT)/apps/breakfast/bacon/settingsStorage
 CFLAGS += -I$(TOSROOT)/apps/breakfast/bacon/ToastSampler
-CFLAGS += -I$(TOSROOT)/apps/breakfast/bacon/cxlTestbed
+#CFLAGS += -I$(TOSROOT)/apps/breakfast/bacon/cxlTestbed
+CFLAGS += -I$(TOSROOT)/apps/breakfast/bacon/LSOTestbed
 CFLAGS += -I$(TOSDIR)/chips/msp430/tlvStorage
 
 PFLAGS+=-DMSP430XV2_DCO_CONFIG=MSP430XV2_DCO_32MHz_RSEL6

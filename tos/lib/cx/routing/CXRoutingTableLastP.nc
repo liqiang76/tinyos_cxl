@@ -87,7 +87,7 @@ module CXRoutingTableLastP {
           if((!use_optm) || (use_optm && !rt[i].disabled))
             return rt[i].distance;
           else
-            return 255;
+            return 100;
         }
       }
       cdbg(ROUTING, "DD %u %u\r\n", from, to);
@@ -140,8 +140,10 @@ module CXRoutingTableLastP {
         {
           rt[i].disabled= FALSE;
           //rt[i].sn = sn;
+          cinfo(SCHED, "COME back %u, %u\r\n", rt[i].sn, sn);
         }
         rt[i].optimized = TRUE;
+//        cinfo(SCHED, "No need to come back %u, %u\r\n", rt[i].sn, sn);
         return SUCCESS;
       }
     }

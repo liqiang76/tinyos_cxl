@@ -59,9 +59,10 @@ module AutoSenderP{
 
   task void sendAgain(){
    if (!sending){
-     if (packetsQueued){
+     if (packetsQueued > 0){
        error_t error;
-       (call CXLinkPacket.getLinkMetadata(testMsg))->dataPending = (packetsQueued > 1);
+       //(call CXLinkPacket.getLinkMetadata(testMsg))->dataPending = (packetsQueued > 1);
+       (call CXLinkPacket.getLinkMetadata(testMsg))->dataPending = FALSE;
        error = call AMSend.send(TEST_DESTINATION, testMsg,
          TEST_PAYLOAD_LEN);
        if (SUCCESS != error){
