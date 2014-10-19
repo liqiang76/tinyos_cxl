@@ -122,8 +122,15 @@ module CXRoutingTableLastP {
     return FAIL;
   }
 
+
   //Our leave leads to packet loss, so come back
   // sn: the last packet master received last slot
+
+  // *** very important***: In some cases a leaf mote could miss status msg from SLOT OWNER, then 
+  //    the leaf might call this function when packet loss happens, but in fact this mote 
+  //    did not involve in forwarding at all... This case the sn will be 0. So our solution
+  //    is mark this as enabled and not optimized so that it will forward at first and then try to
+  //    leave when necessary.
   command error_t RoutingTable.returnForwardSet(am_addr_t from, am_addr_t to, int16_t sn)
   {
     uint8_t i;
@@ -136,13 +143,19 @@ module CXRoutingTableLastP {
       if ((from == rt[i].src && to == rt[i].dest) 
           || (from == rt[i].dest && to == rt[i].src))
       {
-        if(rt[i].sn >= sn)
+        if((rt[i].sn >= sn) && (sn != 0))
         {
           rt[i].disabled= FALSE;
           //rt[i].sn = sn;
+          rt[i].optimized = TRUE;
           cinfo(SCHED, "COME back %u, %u\r\n", rt[i].sn, sn);
         }
-        rt[i].optimized = TRUE;
+        else if(sn == 0)
+        {
+          rt[i].disabled = FALSE;
+          rt[i].optimized = FALSE;
+          cinfo(SCHED, "MISS status. Start forwarding %u, %u\r\n", rt[i].sh, sn);
+        }
 //        cinfo(SCHED, "No need to come back %u, %u\r\n", rt[i].sn, sn);
         return SUCCESS;
       }
