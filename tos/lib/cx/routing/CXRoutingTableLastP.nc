@@ -154,7 +154,7 @@ module CXRoutingTableLastP {
         {
           rt[i].disabled = FALSE;
           rt[i].optimized = FALSE;
-          cinfo(SCHED, "MISS status. Start forwarding %u, %u\r\n", rt[i].sh, sn);
+          cinfo(SCHED, "MISS status. Start forwarding %u, %u\r\n", rt[i].sn, sn);
         }
 //        cinfo(SCHED, "No need to come back %u, %u\r\n", rt[i].sn, sn);
         return SUCCESS;

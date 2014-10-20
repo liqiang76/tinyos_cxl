@@ -847,7 +847,7 @@ module SlotSchedulerP {
     } else {
       if (state == S_STATUS_PREP || state == S_IDLE){ 
 //        cinfo(SCHED, "PUSH a packet! %d, %d, %d\r\n", call CXMacPacket.getMacType(msg), call CXLinkPacket.source(msg),
-            call CXLinkPacket.destination(msg));
+//            call CXLinkPacket.destination(msg));
         pendingMsg = msg;
         pendingLen = len;
         if (state == S_IDLE){
