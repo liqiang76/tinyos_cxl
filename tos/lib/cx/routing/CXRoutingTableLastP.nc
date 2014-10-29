@@ -148,13 +148,13 @@ module CXRoutingTableLastP {
           rt[i].disabled= FALSE;
           //rt[i].sn = sn;
           rt[i].optimized = TRUE;
-          cinfo(SCHED, "COME back %u, %u\r\n", rt[i].sn, sn);
+          //cinfo(SCHED, "COME back %u, %u\r\n", rt[i].sn, sn);
         }
         else if(sn == 0)
         {
           rt[i].disabled = FALSE;
           rt[i].optimized = FALSE;
-          cinfo(SCHED, "MISS status. Start forwarding %u, %u\r\n", rt[i].sn, sn);
+          //cinfo(SCHED, "MISS status. Start forwarding %u, %u\r\n", rt[i].sn, sn);
         }
 //        cinfo(SCHED, "No need to come back %u, %u\r\n", rt[i].sn, sn);
         return SUCCESS;

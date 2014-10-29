@@ -224,7 +224,7 @@ module SlotSchedulerP {
   bool randomLeaveFwdSet()
   {
     uint32_t possibility = call Random.rand32() % 100;
-    cinfo(SCHED, "RAND %u\r\n", possibility);
+    //cinfo(SCHED, "RAND %u\r\n", possibility);
 
     if(possibility <= FORWARD_POSSIBILITY)
       return FALSE;
@@ -350,7 +350,7 @@ module SlotSchedulerP {
     }
 
     //all motes should execute this
-    cinfo(SCHED, "Last Src: %d, New Src: %d\r\n", lastSrc, call CXLinkPacket.destination(msg));
+    //cinfo(SCHED, "Last Src: %d, New Src: %d\r\n", lastSrc, call CXLinkPacket.destination(msg));
     if(lastSrc == call CXLinkPacket.destination(msg))
     {
       // the owner does not change, so we can try optimize 
@@ -475,32 +475,33 @@ module SlotSchedulerP {
           //if(lastSN != 0)
           if(!ownerChanged)
           {
-            cinfo(SCHED, "Slot owner does not change. %u\r\n",lastSN);
+            //cinfo(SCHED, "Slot owner does not change. %u\r\n",lastSN);
             //the same slot owner as in last timeslot
             lastSN_status = status->lastSN;
             if((lastSN_status > lastSN_CTS) && !call RoutingTable.isOptimized(self, msg_src))
             {
               //Packet loss happened in last timeslot
               call RoutingTable.returnForwardSet( self, msg_src, lastSN_CTS);
-              cinfo(SCHED, "RETURN %u %u\r\n", wakeupNum, slotNum);
+              //cinfo(SCHED, "RETURN %u %u\r\n", wakeupNum, slotNum);
             }
           }
           else
           {
-             cinfo(SCHED,"Slot owner changed. %d\r\n", call CXLinkPacket.source(msg));
+             //cinfo(SCHED,"Slot owner changed. %d\r\n", call CXLinkPacket.source(msg));
           }
 
-          cinfo(SCHED, "Routing Table: %u %u %u %u %u %u \r\n",
+          /*cinfo(SCHED, "Routing Table: %u %u %u %u %u %u \r\n",
                 msg_src, msg_dst,
                 call RoutingTable.getDistance(msg_src, self, TRUE),
                 call RoutingTable.getDistance(self, msg_dst, TRUE),
                 call RoutingTable.getDistance(msg_src, msg_dst, FALSE),
                 status->bw);
+          
 
           if(shouldForward(call CXLinkPacket.source(msg), call CXLinkPacket.destination(msg), status->bw))
           {
              cinfo(SCHED, "CTS info: Should forward, %d,%d,%d\r\n", call CXLinkPacket.source(msg), call CXLinkPacket.destination(msg), status->bw);
-          }
+          } */
 
           if (status->dataPending && shouldForward(msg_src, msg_dst, status->bw) 
               && msg_src != msg_dst){
@@ -561,25 +562,25 @@ module SlotSchedulerP {
           // This node is acting as a forwarder. So, it will check if 
           // the route has been optimized. If yes, do nothing; or it
           // should randomly choose if it should leave. 
-          if(!call RoutingTable.isDisabled(lastSrc, self))
+          /*if(!call RoutingTable.isDisabled(lastSrc, self))
           {
             cinfo(SCHED, "FORWARDING %u %u\r\n", wakeupNum, slotNum);
           }
           else
           {
             cinfo(SCHED, "LEFT %u %u\r\n", wakeupNum, slotNum);
-          }
+          }*/
 
           //if(! call RoutingTable.isOptimized(lastSrc, self))
           if(! call RoutingTable.isDisabled(lastSrc, self) && 
              ! call RoutingTable.isOptimized(lastSrc, self))
           {
-            cinfo(SCHED, "SELECTING %u %u\r\n", wakeupNum, slotNum);
+            //cinfo(SCHED, "SELECTING %u %u\r\n", wakeupNum, slotNum);
             if(randomLeaveFwdSet())
             //Leave forwarding set and sleep
             {
               error_t error = call CXLink.sleep();
-              cinfo(SCHED, "QUIT %u %u\r\n", wakeupNum, slotNum);
+              //cinfo(SCHED, "QUIT %u %u\r\n", wakeupNum, slotNum);
               call RoutingTable.leaveForwardSet(lastSrc, self, lastSN);
               slotRole = ROLE_NONFORWARDER;
               call FrameTimer.stop();
@@ -1114,8 +1115,8 @@ module SlotSchedulerP {
     post logNeighborhood();
     #endif
     state = S_UNSYNCHED;
-    cinfo(SCHED, "SLEEP %u\r\n", 
-      (call ProbeSchedule.get())->channel[activeNS]);
+    //cinfo(SCHED, "SLEEP %u\r\n", 
+    //  (call ProbeSchedule.get())->channel[activeNS]);
     signal DownloadNotify.downloadFinished[activeNS]();
     return error;
   }
@@ -1194,7 +1195,7 @@ module SlotSchedulerP {
             #if LOG_CTS_TIME == 1
             ctsStart = call FrameTimer.getNow();
             #endif
-            cinfo(SCHED, "TTL of CTS:%d\r\n", call SlotController.maxDepth[activeNS](activeNS));
+            //cinfo(SCHED, "TTL of CTS:%d\r\n", call SlotController.maxDepth[activeNS](activeNS));
             error = send(ctsMsg, 0,
               call SlotController.maxDepth[activeNS](activeNS),
               call SlotTimer.gett0() + TX_SLACK);
