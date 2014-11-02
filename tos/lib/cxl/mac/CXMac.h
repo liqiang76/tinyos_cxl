@@ -120,6 +120,7 @@ typedef nx_struct cx_lpp_sleep {
 typedef nx_struct cx_lpp_cts {
   nx_int16_t slotNum;
   nx_int16_t lastSN;
+  nx_int16_t pkts;
 } cx_lpp_cts_t;
 
 typedef nx_struct cx_status {
@@ -138,6 +139,7 @@ typedef nx_struct cx_status {
   nx_am_addr_t neighbors[CX_NEIGHBORHOOD_SIZE];
 
   nx_uint16_t lastSN;
+  nx_uint16_t pkts;
 } cx_status_t; 
 
 typedef nx_struct cx_eos {

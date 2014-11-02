@@ -232,6 +232,11 @@ module SlotSchedulerP {
       return TRUE;
   }
 
+  //if prr lower than this thresthold, we should revert to CXFS
+  #ifndef PRR_THREST
+  #define PRR_THREST 0.7
+  #endif
+
   // for forwarder/slot owner/master: 
   //     lastSrc: slot owner of last slot;
   //     lastSN: last msg forwarded/sent/received;
@@ -245,6 +250,20 @@ module SlotSchedulerP {
   uint16_t lastSN_status = 0;
   bool ownerChanged = FALSE;
  
+  //these 2 are from control messages
+  uint16_t pkts_rcv_CTS = 0;
+  uint16_t pkts_snd_status = 0;
+  //these 2 are for master and slot owner
+  uint16_t pkts_rcv = 0;
+  uint16_t pkts_snd = 0;
+  enum{
+    CXFS_MODE = 0,
+    PLF_MODE =1,
+  };
+  uint8_t Mode = PLF_MODE;
+  float prr = 0.0;
+
+
   uint8_t activeNS;
   uint8_t wrxCount;
 
@@ -289,6 +308,8 @@ module SlotSchedulerP {
   }
 
   bool shouldForward(am_addr_t src, am_addr_t dest, uint8_t bw){
+    uint8_t si, id, sd;
+
     #if ENABLE_FORWARDER_SELECTION == 0
     #warning Forwarder selection disabled!
     return TRUE;
@@ -299,9 +320,18 @@ module SlotSchedulerP {
     // we need to know if we have decided to leave this forward set;
     // while in 3rd we set use_optm=FALSE, because we need to know
     // the true distance between src and dest.
-    uint8_t si = call RoutingTable.getDistance(src, self, TRUE);
-    uint8_t id = call RoutingTable.getDistance(self, dest, TRUE);
-    uint8_t sd = call RoutingTable.getDistance(src, dest, FALSE);
+    if(Mode == PLF_MODE)
+    {
+      si = call RoutingTable.getDistance(src, self, TRUE);
+      id = call RoutingTable.getDistance(self, dest, TRUE);
+      sd = call RoutingTable.getDistance(src, dest, FALSE);
+    }
+    else
+    {
+      si = call RoutingTable.getDistance(src, self, FALSE);
+      id = call RoutingTable.getDistance(self, dest, FALSE);
+      sd = call RoutingTable.getDistance(src, dest, FALSE);
+    }
     
 //    //replace unknown distances with 0.
 //    si = (si == call RoutingTable.getDefault())? 0 : si;
@@ -356,6 +386,7 @@ module SlotSchedulerP {
       // the owner does not change, so we can try optimize 
       // if not optimized yet
       lastSN_CTS = pl -> lastSN;
+      pkts_rcv_CTS = pl->pkts;
       ownerChanged = FALSE;
     }
     else
@@ -365,8 +396,14 @@ module SlotSchedulerP {
       lastSN = 0;
       lastSN_CTS = 0;
       lastSN_status = 0;
+
+      pkts_rcv_CTS = 0;
+      pkts_snd_status = 0;
+      pkts_rcv = 0;
+      pkts_snd = 0;
       lastSrc = call CXLinkPacket.destination(msg);
       ownerChanged = TRUE;
+      Mode = PLF_MODE;
     }
 
     #if LOG_CTS_TIME == 1
@@ -472,18 +509,34 @@ module SlotSchedulerP {
           }
           call RoutingTable.addMeasurement( msg_dst, msg_src, status->distance);
  
-          //if(lastSN != 0)
-          if(!ownerChanged)
+          //If owner not changed and not reverted to CXFS_MODE, we try PLF optimization first.
+          // If optimized but PRR is too low, we will revert to CXFS_MODE
+          if(!ownerChanged && Mode != CXFS_MODE)
           {
             //cinfo(SCHED, "Slot owner does not change. %u\r\n",lastSN);
             //the same slot owner as in last timeslot
             lastSN_status = status->lastSN;
+            pkts_snd_status = status->pkts;
             if((lastSN_status > lastSN_CTS) && !call RoutingTable.isOptimized(self, msg_src))
             {
               //Packet loss happened in last timeslot
               call RoutingTable.returnForwardSet( self, msg_src, lastSN_CTS);
               //cinfo(SCHED, "RETURN %u %u\r\n", wakeupNum, slotNum);
             }
+            else
+            {
+              if(pkts_snd_status < 10)
+              {
+                prr = 1.0;
+              }
+              else
+              {
+                prr = pkts_rcv_CTS / pkts_snd_status;
+                if(prr < PRR_THREST)
+                  Mode = CXFS_MODE;
+              }
+            }
+
           }
           else
           {
@@ -555,7 +608,9 @@ module SlotSchedulerP {
         lastSN = call CXLinkPacket.getSn(msg);
         if (call SlotController.isMaster[activeNS]())
         {
-          call SlotController.setLastSN[activeNS](lastSN);
+          pkts_rcv++;
+          //call SlotController.setLastSN[activeNS](lastSN);
+          call SlotController.setLastSN[activeNS](pkts_rcv);
         }
         else if(call CXLink.isForwarding())
         {
@@ -573,7 +628,8 @@ module SlotSchedulerP {
 
           //if(! call RoutingTable.isOptimized(lastSrc, self))
           if(! call RoutingTable.isDisabled(lastSrc, self) && 
-             ! call RoutingTable.isOptimized(lastSrc, self))
+             ! call RoutingTable.isOptimized(lastSrc, self) && 
+             Mode != CXFS_MODE)
           {
             //cinfo(SCHED, "SELECTING %u %u\r\n", wakeupNum, slotNum);
             if(randomLeaveFwdSet())
@@ -615,6 +671,7 @@ module SlotSchedulerP {
 
       //lastSN=0 if owner changed. And it is OK here.
       pl -> lastSN = lastSN;
+      pl -> pkts = pkts_snd;
 
       //future: adjust bw depending on how much uncertainty we
       //observe.
@@ -943,6 +1000,7 @@ module SlotSchedulerP {
 
       // this is the sender in this slot, forwarder and master are in SubReceive.receive()
       lastSN = call CXLinkPacket.getSn(msg);
+      pkts_snd++;
 
       pendingMsg = NULL;
       signal Send.sendDone(msg, error);
@@ -1187,9 +1245,14 @@ module SlotSchedulerP {
             //If session continues, we should help forwarders
             // to make clear if packet loss happened last slot
             if (activeNode == lastSrc)
+            {
               pl -> lastSN = lastSN;
+              pl -> pkts = pkts_rcv;
+            }
             else
+            {
               pl -> lastSN = 0;
+            }
 
             //header only
             #if LOG_CTS_TIME == 1
