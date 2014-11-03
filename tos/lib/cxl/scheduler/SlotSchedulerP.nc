@@ -234,7 +234,7 @@ module SlotSchedulerP {
 
   //if prr lower than this thresthold, we should revert to CXFS
   #ifndef PRR_THREST
-  #define PRR_THREST 0.7
+  #define PRR_THREST 10
   #endif
 
   // for forwarder/slot owner/master: 
@@ -261,7 +261,6 @@ module SlotSchedulerP {
     PLF_MODE =1,
   };
   uint8_t Mode = PLF_MODE;
-  float prr = 0.0;
 
 
   uint8_t activeNS;
@@ -508,35 +507,25 @@ module SlotSchedulerP {
             call FrameTimer.startPeriodicAt(timestamp(msg), FRAME_LENGTH);
           }
           call RoutingTable.addMeasurement( msg_dst, msg_src, status->distance);
+
+          //check if packet-loss is beyond the thresthold. If yes, revert to CXFS_MODE
+          pkts_snd_status = status->pkts;
+          if((!ownerChanged) && (pkts_snd_status - pkts_rcv_CTS >= PRR_THREST))
+            Mode = CXFS_MODE;
  
           //If owner not changed and not reverted to CXFS_MODE, we try PLF optimization first.
           // If optimized but PRR is too low, we will revert to CXFS_MODE
-          if(!ownerChanged && Mode != CXFS_MODE)
+          if((!ownerChanged) && (Mode != CXFS_MODE))
           {
             //cinfo(SCHED, "Slot owner does not change. %u\r\n",lastSN);
             //the same slot owner as in last timeslot
             lastSN_status = status->lastSN;
-            pkts_snd_status = status->pkts;
             if((lastSN_status > lastSN_CTS) && !call RoutingTable.isOptimized(self, msg_src))
             {
               //Packet loss happened in last timeslot
               call RoutingTable.returnForwardSet( self, msg_src, lastSN_CTS);
               //cinfo(SCHED, "RETURN %u %u\r\n", wakeupNum, slotNum);
             }
-            else
-            {
-              if(pkts_snd_status < 10)
-              {
-                prr = 1.0;
-              }
-              else
-              {
-                prr = pkts_rcv_CTS / pkts_snd_status;
-                if(prr < PRR_THREST)
-                  Mode = CXFS_MODE;
-              }
-            }
-
           }
           else
           {
