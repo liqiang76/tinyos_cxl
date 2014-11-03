@@ -244,6 +244,8 @@ module SlotSchedulerP {
   uint16_t lastSN_CTS = 0;
   uint16_t lastSN_status = 0;
   bool ownerChanged = FALSE;
+
+  bool CXFS_Mode = FALSE;
  
   uint8_t activeNS;
   uint8_t wrxCount;
@@ -295,13 +297,22 @@ module SlotSchedulerP {
     #else
     am_addr_t self = call ActiveMessageAddress.amAddress();
 
-    //Here in first 2 getDistance we set use_optm=TRUE, because
-    // we need to know if we have decided to leave this forward set;
-    // while in 3rd we set use_optm=FALSE, because we need to know
-    // the true distance between src and dest.
-    uint8_t si = call RoutingTable.getDistance(src, self, TRUE);
-    uint8_t id = call RoutingTable.getDistance(self, dest, TRUE);
-    uint8_t sd = call RoutingTable.getDistance(src, dest, FALSE);
+    if(!CXFS_Mode)
+    {
+      //Here in first 2 getDistance we set use_optm=TRUE, because
+      // we need to know if we have decided to leave this forward set;
+      // while in 3rd we set use_optm=FALSE, because we need to know
+      // the true distance between src and dest.
+      uint8_t si = call RoutingTable.getDistance(src, self, TRUE);
+      uint8_t id = call RoutingTable.getDistance(self, dest, TRUE);
+      uint8_t sd = call RoutingTable.getDistance(src, dest, FALSE);
+    }
+    else
+    {
+      uint8_t si = call RoutingTable.getDistance(src, self, FALSE);
+      uint8_t id = call RoutingTable.getDistance(self, dest, FALSE);
+      uint8_t sd = call RoutingTable.getDistance(src, dest, FALSE);
+    }
     
 //    //replace unknown distances with 0.
 //    si = (si == call RoutingTable.getDefault())? 0 : si;
@@ -495,13 +506,14 @@ module SlotSchedulerP {
                 call RoutingTable.getDistance(msg_src, self, TRUE),
                 call RoutingTable.getDistance(self, msg_dst, TRUE),
                 call RoutingTable.getDistance(msg_src, msg_dst, FALSE),
-                status->bw);
-          
+                status->bw);*/
 
+          CXFS_Mode = TRUE;
           if(shouldForward(call CXLinkPacket.source(msg), call CXLinkPacket.destination(msg), status->bw))
           {
-             cinfo(SCHED, "CTS info: Should forward, %d,%d,%d\r\n", call CXLinkPacket.source(msg), call CXLinkPacket.destination(msg), status->bw);
-          } */
+             cinfo(SCHED, "CXFS: Should forward, %d,%d,%d\r\n", call CXLinkPacket.source(msg), call CXLinkPacket.destination(msg), status->bw);
+          }
+          CXFS_Mode = FALSE;
 
           if (status->dataPending && shouldForward(msg_src, msg_dst, status->bw) 
               && msg_src != msg_dst){
