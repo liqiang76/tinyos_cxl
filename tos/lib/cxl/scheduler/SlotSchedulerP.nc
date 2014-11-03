@@ -261,6 +261,7 @@ module SlotSchedulerP {
     PLF_MODE =1,
   };
   uint8_t Mode = PLF_MODE;
+  uint8_t tmpMode;
 
 
   uint8_t activeNS;
@@ -537,13 +538,15 @@ module SlotSchedulerP {
                 call RoutingTable.getDistance(msg_src, self, TRUE),
                 call RoutingTable.getDistance(self, msg_dst, TRUE),
                 call RoutingTable.getDistance(msg_src, msg_dst, FALSE),
-                status->bw);
+                status->bw);*/
           
-
+          tmpMode = Mode;
+          Mode = CXFS_MODE;
           if(shouldForward(call CXLinkPacket.source(msg), call CXLinkPacket.destination(msg), status->bw))
           {
-             cinfo(SCHED, "CTS info: Should forward, %d,%d,%d\r\n", call CXLinkPacket.source(msg), call CXLinkPacket.destination(msg), status->bw);
-          } */
+             cinfo(SCHED, "CXFS: Should forward, %d,%d,%d\r\n", call CXLinkPacket.source(msg), call CXLinkPacket.destination(msg), status->bw);
+          }
+          Mode = tmpMode;
 
           if (status->dataPending && shouldForward(msg_src, msg_dst, status->bw) 
               && msg_src != msg_dst){
