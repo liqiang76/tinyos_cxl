@@ -296,6 +296,7 @@ module SlotSchedulerP {
     return TRUE;
     #else
     am_addr_t self = call ActiveMessageAddress.amAddress();
+    uint8_t si, id, sd;
 
     if(!CXFS_Mode)
     {
@@ -303,15 +304,15 @@ module SlotSchedulerP {
       // we need to know if we have decided to leave this forward set;
       // while in 3rd we set use_optm=FALSE, because we need to know
       // the true distance between src and dest.
-      uint8_t si = call RoutingTable.getDistance(src, self, TRUE);
-      uint8_t id = call RoutingTable.getDistance(self, dest, TRUE);
-      uint8_t sd = call RoutingTable.getDistance(src, dest, FALSE);
+      si = call RoutingTable.getDistance(src, self, TRUE);
+      id = call RoutingTable.getDistance(self, dest, TRUE);
+      sd = call RoutingTable.getDistance(src, dest, FALSE);
     }
     else
     {
-      uint8_t si = call RoutingTable.getDistance(src, self, FALSE);
-      uint8_t id = call RoutingTable.getDistance(self, dest, FALSE);
-      uint8_t sd = call RoutingTable.getDistance(src, dest, FALSE);
+      si = call RoutingTable.getDistance(src, self, FALSE);
+      id = call RoutingTable.getDistance(self, dest, FALSE);
+      sd = call RoutingTable.getDistance(src, dest, FALSE);
     }
     
 //    //replace unknown distances with 0.
