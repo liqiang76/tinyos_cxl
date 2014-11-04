@@ -507,9 +507,9 @@ module SlotSchedulerP {
             //cinfo(SCHED, "Slot owner does not change. %u\r\n",lastSN);
             //the same slot owner as in last timeslot
             lastSN_status = status->lastSN;
-            if((pkts_snd_status - pkts_rcv_CTS >= 2) && !call RoutingTable.isOptimized(self, msg_src))
+            if((pkts_snd_status - pkts_rcv_CTS >= 1) && !call RoutingTable.isOptimized(self, msg_src))
             {
-              call RoutingTable.returnForwardSet( self, msg_src, lastSN_status);
+              call RoutingTable.returnForwardSet( self, msg_src, lastSN_CTS);
             }
 
             /*if((lastSN_status > lastSN_CTS) && !call RoutingTable.isOptimized(self, msg_src))
@@ -652,6 +652,7 @@ module SlotSchedulerP {
       //lastSN=0 if owner changed. And it is OK here.
       pl -> lastSN = lastSN;
       pl -> pkts = pkts_snd;
+      pkts_snd = 0;
 
       //future: adjust bw depending on how much uncertainty we
       //observe.
@@ -1228,6 +1229,7 @@ module SlotSchedulerP {
             {
               pl -> lastSN = lastSN;
               pl->pkts = pkts_rcv;
+              pkts_rcv = 0;
             }
             else
               pl -> lastSN = 0;
