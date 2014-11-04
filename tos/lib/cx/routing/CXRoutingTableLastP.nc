@@ -143,7 +143,7 @@ module CXRoutingTableLastP {
       if ((from == rt[i].src && to == rt[i].dest) 
           || (from == rt[i].dest && to == rt[i].src))
       {
-        if((rt[i].sn >= sn) && (sn != 0))
+        if((rt[i].sn >= sn - 5) && (sn != 0))
         {
           rt[i].disabled= FALSE;
           //rt[i].sn = sn;

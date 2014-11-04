@@ -245,6 +245,15 @@ module SlotSchedulerP {
   uint16_t lastSN_status = 0;
   bool ownerChanged = FALSE;
  
+  //these 2 are from control messages
+  uint16_t pkts_rcv_CTS = 0;
+  uint16_t pkts_snd_status = 0;
+  //these 2 are for master and slot owner
+  uint16_t pkts_rcv = 0;
+  uint16_t pkts_snd = 0;
+
+  bool origCXFS = FALSE;
+
   uint8_t activeNS;
   uint8_t wrxCount;
 
@@ -295,13 +304,24 @@ module SlotSchedulerP {
     #else
     am_addr_t self = call ActiveMessageAddress.amAddress();
 
-    //Here in first 2 getDistance we set use_optm=TRUE, because
-    // we need to know if we have decided to leave this forward set;
-    // while in 3rd we set use_optm=FALSE, because we need to know
-    // the true distance between src and dest.
-    uint8_t si = call RoutingTable.getDistance(src, self, TRUE);
-    uint8_t id = call RoutingTable.getDistance(self, dest, TRUE);
-    uint8_t sd = call RoutingTable.getDistance(src, dest, FALSE);
+    uint8_t si, id, sd;
+
+    if(!origCXFS)
+    {
+      //Here in first 2 getDistance we set use_optm=TRUE, because
+      // we need to know if we have decided to leave this forward set;
+      // while in 3rd we set use_optm=FALSE, because we need to know
+      // the true distance between src and dest.
+      si = call RoutingTable.getDistance(src, self, TRUE);
+      id = call RoutingTable.getDistance(self, dest, TRUE);
+      sd = call RoutingTable.getDistance(src, dest, FALSE);
+    }
+    else
+    {
+      si = call RoutingTable.getDistance(src, self, FALSE);
+      id = call RoutingTable.getDistance(self, dest, FALSE);
+      sd = call RoutingTable.getDistance(src, dest, FALSE);
+    }
     
 //    //replace unknown distances with 0.
 //    si = (si == call RoutingTable.getDefault())? 0 : si;
@@ -356,6 +376,7 @@ module SlotSchedulerP {
       // the owner does not change, so we can try optimize 
       // if not optimized yet
       lastSN_CTS = pl -> lastSN;
+      pkts_rcv_CTS = pl -> pkts;
       ownerChanged = FALSE;
     }
     else
@@ -367,6 +388,11 @@ module SlotSchedulerP {
       lastSN_status = 0;
       lastSrc = call CXLinkPacket.destination(msg);
       ownerChanged = TRUE;
+
+      pkts_rcv_CTS = 0;
+      pkts_snd_status = 0;
+      pkts_rcv = 0;
+      pkts_snd = 0;
     }
 
     #if LOG_CTS_TIME == 1
@@ -472,18 +498,26 @@ module SlotSchedulerP {
           }
           call RoutingTable.addMeasurement( msg_dst, msg_src, status->distance);
  
+          //get the packet-loss information
+          pkts_snd_status = status->pkts;
+
           //if(lastSN != 0)
           if(!ownerChanged)
           {
             //cinfo(SCHED, "Slot owner does not change. %u\r\n",lastSN);
             //the same slot owner as in last timeslot
             lastSN_status = status->lastSN;
-            if((lastSN_status > lastSN_CTS) && !call RoutingTable.isOptimized(self, msg_src))
+            if((pkts_snd_status - pkts_rcv_CTS >= 2) && !call RoutingTable.isOptimized(self, msg_src))
+            {
+              call RoutingTable.returnForwardSet( self, msg_src, lastSN_status);
+            }
+
+            /*if((lastSN_status > lastSN_CTS) && !call RoutingTable.isOptimized(self, msg_src))
             {
               //Packet loss happened in last timeslot
               call RoutingTable.returnForwardSet( self, msg_src, lastSN_CTS);
               //cinfo(SCHED, "RETURN %u %u\r\n", wakeupNum, slotNum);
-            }
+            }*/
           }
           else
           {
@@ -495,13 +529,14 @@ module SlotSchedulerP {
                 call RoutingTable.getDistance(msg_src, self, TRUE),
                 call RoutingTable.getDistance(self, msg_dst, TRUE),
                 call RoutingTable.getDistance(msg_src, msg_dst, FALSE),
-                status->bw);
+                status->bw);*/
           
-
+          origCXFS = TRUE;
           if(shouldForward(call CXLinkPacket.source(msg), call CXLinkPacket.destination(msg), status->bw))
           {
-             cinfo(SCHED, "CTS info: Should forward, %d,%d,%d\r\n", call CXLinkPacket.source(msg), call CXLinkPacket.destination(msg), status->bw);
-          } */
+             cinfo(SCHED, "CXFS: Should forward, %d,%d,%d\r\n", call CXLinkPacket.source(msg), call CXLinkPacket.destination(msg), status->bw);
+          }
+          origCXFS = FALSE;
 
           if (status->dataPending && shouldForward(msg_src, msg_dst, status->bw) 
               && msg_src != msg_dst){
@@ -555,6 +590,7 @@ module SlotSchedulerP {
         lastSN = call CXLinkPacket.getSn(msg);
         if (call SlotController.isMaster[activeNS]())
         {
+          pkts_rcv++;
           call SlotController.setLastSN[activeNS](lastSN);
         }
         else if(call CXLink.isForwarding())
@@ -615,6 +651,7 @@ module SlotSchedulerP {
 
       //lastSN=0 if owner changed. And it is OK here.
       pl -> lastSN = lastSN;
+      pl -> pkts = pkts_snd;
 
       //future: adjust bw depending on how much uncertainty we
       //observe.
@@ -943,6 +980,7 @@ module SlotSchedulerP {
 
       // this is the sender in this slot, forwarder and master are in SubReceive.receive()
       lastSN = call CXLinkPacket.getSn(msg);
+      pkts_snd++;
 
       pendingMsg = NULL;
       signal Send.sendDone(msg, error);
@@ -1187,7 +1225,10 @@ module SlotSchedulerP {
             //If session continues, we should help forwarders
             // to make clear if packet loss happened last slot
             if (activeNode == lastSrc)
+            {
               pl -> lastSN = lastSN;
+              pl->pkts = pkts_rcv;
+            }
             else
               pl -> lastSN = 0;
 
