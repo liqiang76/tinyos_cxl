@@ -534,10 +534,15 @@ module SlotSchedulerP {
           origCXFS = TRUE;
           if(shouldForward(call CXLinkPacket.source(msg), call CXLinkPacket.destination(msg), status->bw))
           {
-             cinfo(SCHED, "CXFS: Should forward, %d,%d,%d\r\n", call CXLinkPacket.source(msg), call CXLinkPacket.destination(msg), status->bw);
+             cinfo(SCHED, "CXFS: Should forward\r\n");
           }
           origCXFS = FALSE;
 
+          if(shouldForward(call CXLinkPacket.source(msg), call CXLinkPacket.destination(msg), status->bw))
+          {
+             cinfo(SCHED, "WIN5: Should forward\r\n");
+          }
+ 
           if (status->dataPending && shouldForward(msg_src, msg_dst, status->bw) 
               && msg_src != msg_dst){
             slotRole = ROLE_FORWARDER;
