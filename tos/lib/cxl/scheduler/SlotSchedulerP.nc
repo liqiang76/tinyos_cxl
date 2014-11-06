@@ -217,7 +217,7 @@ module SlotSchedulerP {
   //Define in what possibility this mote will keep 
   // in a forward set after forwarding one packet
   #ifndef FORWARD_POSSIBILITY
-  #define FORWARD_POSSIBILITY 70
+  #define FORWARD_POSSIBILITY 85
   #endif
   //Randomly choose to leave or not
   uint32_t random_thresh = 42949672UL * FORWARD_POSSIBILITY;
